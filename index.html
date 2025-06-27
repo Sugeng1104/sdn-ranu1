@@ -53,6 +53,7 @@
 
     <input type="submit" value="Kirim Absensi">
     <p id="warning"></p>
+<p id="successMsg" style="color: green; font-weight: bold;"></p>
   </form>
 
   <script>
@@ -115,7 +116,7 @@
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          alert("✅ Absensi berhasil dikirim oleh: " + nama);
+          document.getElementById("successMsg").innerText = "✅ Anda berhasil mengisi absen sebagai: " + nama;
           e.target.reset();
           document.getElementById("buktiDiv").style.display = "none";
           updateLokasi();
