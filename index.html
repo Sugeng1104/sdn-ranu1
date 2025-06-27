@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Absensi Pegawai</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+    label, select, input { display: block; width: 100%; margin-bottom: 15px; }
+    input[type="submit"] {
+      background-color: #28a745; color: white; padding: 10px;
+      border: none; border-radius: 5px; cursor: pointer;
+    }
+    #warning { color: red; font-weight: bold; white-space: pre-line; }
+    #buktiDiv { display: none; }
+  </style>
+</head>
+<body>
+  <h2>Form Absensi Pegawai</h2>
+  <form id="absenForm">
+    <label>Nama Pegawai:</label>
+    <select id="nama" required>
+      <option value="">-- Pilih Nama --</option>
+      <option value="Sugeng Hidayat">Sugeng Hidayat</option>
+      <option value="Sutriono">Sutriono</option>
+      <option value="Rety Fauziah">Rety Fauziah</option>
+      <option value="Komariah">Komariah</option>
+      <option value="Ummu Sholikhah">Ummu Sholikhah</option>
+      <option value="Endang Riswati">Endang Riswati</option>
+      <option value="Nia Wulandari">Nia Wulandari</option>
+      <option value="Wahyu Purwanto">Wahyu Purwanto</option>
+      <option value="Ulfiya Na'imi">Ulfiya Na'imi</option>
+    </select>
+
+    <label>Status Kehadiran:</label>
+    <select id="status" required onchange="toggleBukti()">
+      <option value="">-- Pilih Status --</option>
+      <option value="Hadir">Hadir</option>
+      <option value="Izin">Izin</option>
+      <option value="Sakit">Sakit</option>
+    </select>
+
+    <div id="buktiDiv">
+      <label>Unggah Bukti Izin/Sakit:</label>
+      <input type="file" accept="image/*,application/pdf" id="bukti">
+    </div>
+
+    <label>Lokasi GPS (otomatis):</label>
+    <input id="lokasi" type="text" readonly required>
+
+    <label>Upload Foto Kehadiran:</label>
+    <input type="file" accept="image/*" capture="user" id="foto" required>
+
+    <input type="submit" value="Kirim Absensi">
+    <p id="warning"></p>
+  </form>
+
+  <script>
+    const endpoint = "https://script.google.com/macros/s/AKfycbwRl1EgF-2blQTxHA7K2WC-lgASoZ4PuRVmzunQYWA_LYXWotfTuvFKfz9v2bt-zZM/exec";
+    const sekolahLat = -7.71917, sekolahLng = 113.00861, radiusMaks = 200;
+    let userLat = null, userLng = null;
+
+    function toggleBukti() {
+      const status = document.getElementById("status").value;
+      document.getElementById("buktiDiv").style.display = (status === "Izin" || status === "Sakit") ? "block" : "none";
+    }
+
+    function getDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371e3;
+      const φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
+      const Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lon2-lon1) * Math.PI/180;
+      const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function updateLokasi() {
+      navigator.geolocation.getCurrentPosition(pos => {
+        userLat = pos.coords.latitude;
+        userLng = pos.coords.longitude;
+        document.getElementById("lokasi").value = userLat.toFixed(5) + ", " + userLng.toFixed(5);
+      }, err => {
+        document.getElementById("warning").innerText = "❌ Gagal mendapatkan lokasi: " + err.message;
+      });
+    }
+
+    function convertToBase64(file, callback) {
+      const reader = new FileReader();
+      reader.onloadend = () => callback(reader.result);
+      reader.readAsDataURL(file);
+    }
+
+    document.getElementById("absenForm").addEventListener("submit", async function(e) {
+      e.preventDefault();
+
+      const nama = document.getElementById("nama").value;
+      const status = document.getElementById("status").value;
+      const lokasi = document.getElementById("lokasi").value;
+      const fotoFile = document.getElementById("foto").files[0];
+      const buktiFile = document.getElementById("bukti").files[0];
+
+      if (!userLat || !userLng) return alert("❌ Lokasi belum tersedia. Aktifkan GPS.");
+      if (status === "Hadir" && getDistance(userLat, userLng, sekolahLat, sekolahLng) > radiusMaks)
+        return alert("❌ Anda berada di luar radius 200 meter dari sekolah.");
+
+      let fotoB64 = "", buktiB64 = "";
+      if (fotoFile) fotoB64 = await new Promise(res => convertToBase64(fotoFile, res));
+      if (buktiFile) buktiB64 = await new Promise(res => convertToBase64(buktiFile, res));
+
+      const payload = { nama, status, lokasi, fotoKehadiran: fotoB64, buktiIzin: buktiB64 };
+      fetch(endpoint, {
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json" }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          alert("✅ Absensi berhasil dikirim oleh: " + nama);
+          e.target.reset();
+          document.getElementById("buktiDiv").style.display = "none";
+          updateLokasi();
+        } else {
+          alert("❌ Gagal: " + data.error);
+        }
+      });
+    });
+
+    updateLokasi();
+  </script>
+</body>
+</html>
