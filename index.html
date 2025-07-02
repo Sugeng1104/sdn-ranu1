@@ -134,7 +134,22 @@
       <option value="Ulfiya Na'imi">Ulfiya Na'imi</option>
     </select>
 
-    <label>Status Kehadiran:</label>
+    <label>Instansi:</label>
+<select name="entry.827454273" required>
+  <option value="">-- Pilih Instansi --</option>
+  <option value="SDN Ranuwurung 1">SDN Ranuwurung 1</option>
+  <option value="SDN Ranuwurung 2">SDN Ranuwurung 2</option>
+  <option value="SDN Ranuwurung 3">SDN Ranuwurung 3</option>
+</select>
+
+<label>Shift (Masuk / Pulang):</label>
+<select name="entry.SHIFT_ID" required>
+  <option value="">-- Pilih Shift --</option>
+  <option value="Masuk">Masuk</option>
+  <option value="Pulang">Pulang</option>
+</select>
+
+<label>Status Kehadiran:</label>
     <select id="status" name="entry.1071933386" required onchange="toggleBukti()">
       <option value="">-- Pilih Status --</option>
       <option value="Hadir">Hadir</option>
@@ -148,7 +163,7 @@
     </div>
 
     <label>Lokasi GPS (otomatis):</label>
-    <input id="lokasi" name="entry.1301079308" type="text" readonly required>
+    <input id="lokasi" name="entry.1780795078" type="text" readonly required>
 
     <label>Upload Foto Kehadiran:</label>
     <input type="file" accept="image/*" capture="user" name="entry.1301079309" required>
