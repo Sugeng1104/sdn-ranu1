@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -13,16 +14,117 @@
     }
     #warning { color: red; font-weight: bold; white-space: pre-line; }
     #buktiDiv { display: none; }
+    .download-link {
+      display: inline-block; background-color: #007bff; color: white;
+      padding: 10px; border-radius: 5px; text-decoration: none; margin-top: 20px;
+    }
   </style>
+  <script>
+    const sekolahLat = -7.71917;
+    const sekolahLng = 113.00861;
+    const radiusMaks = 200;
+    let userLat = null, userLng = null;
+
+    window.onload = function () {
+      if (!/Android|iPhone/i.test(navigator.userAgent)) {
+        document.body.innerHTML = "<h2 style='color:red;text-align:center;padding:20px;'>❌ Akses hanya dari perangkat HP.</h2>";
+      } else {
+        updateLokasi();
+      }
+    };
+
+    function toggleBukti() {
+      const status = document.getElementById("status").value;
+      document.getElementById("buktiDiv").style.display = (status === "Izin" || status === "Sakit") ? "block" : "none";
+    }
+
+    function getDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371e3;
+      const φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180;
+      const Δφ = (lat2 - lat1) * Math.PI / 180, Δλ = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function checkLocation() {
+      const status = document.getElementById("status").value;
+      const bukti = document.getElementById("bukti");
+
+      if (status === "Izin" || status === "Sakit") {
+        if (!bukti || !bukti.value) {
+          document.getElementById("warning").innerText = "❌ Upload bukti Izin/Sakit diperlukan.";
+          return false;
+        }
+        return true;
+      }
+
+      if (!userLat || !userLng) {
+        document.getElementById("warning").innerText = "❌ GPS belum aktif.";
+        return false;
+      }
+
+      const jarak = getDistance(userLat, userLng, sekolahLat, sekolahLng);
+      if (jarak > radiusMaks) {
+        document.getElementById("warning").innerText = "❌ Anda berada di luar radius 200 meter.";
+        return false;
+      }
+
+      const now = new Date();
+      const day = now.getDay();
+      const jam = now.getHours() + now.getMinutes() / 60;
+      let masukStart = 6.5, masukEnd = 7.0, pulangStart = 0, pulangEnd = 0;
+
+      if (day >= 1 && day <= 4) { pulangStart = 14.0; pulangEnd = 14.5; }
+      else if (day === 5) { pulangStart = 11.0; pulangEnd = 11.5; }
+      else if (day === 6) { pulangStart = 12.5; pulangEnd = 13.0; }
+      else { document.getElementById("warning").innerText = "❌ Absen tidak tersedia hari Minggu."; return false; }
+
+      if ((jam >= masukStart && jam <= masukEnd) || (jam >= pulangStart && jam <= pulangEnd)) {
+        return true;
+      } else {
+        document.getElementById("warning").innerText = "❌ Di luar waktu absensi!";
+        return false;
+      }
+    }
+
+    function updateLokasi() {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          userLat = pos.coords.latitude;
+          userLng = pos.coords.longitude;
+          document.getElementById("lokasi").value = userLat.toFixed(5) + ", " + userLng.toFixed(5);
+        },
+        err => {
+          document.getElementById("warning").innerText = "❌ Gagal dapat lokasi: " + err.message;
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    }
+
+    let firstLoad = true;
+    function submitBerhasil() {
+      if (firstLoad) {
+        firstLoad = false;
+      } else {
+        alert("✅ Anda berhasil mengirim data kehadiran!");
+        document.querySelector("form").reset();
+        document.getElementById("buktiDiv").style.display = "none";
+        document.getElementById("warning").innerText = "";
+        updateLokasi();
+      }
+    }
+  </script>
 </head>
 <body>
   <h2>Form Absensi Pegawai</h2>
-  <form id="absenForm">
+  <form action="https://docs.google.com/forms/d/e/1FAIpQLSeTCCniucW246mMo646BYXNgOGwRu0fKV5HP0OFL3zOUet8hQ/formResponse"
+        method="POST" target="hidden_iframe" onsubmit="return checkLocation();">
+
     <label>Nama Pegawai:</label>
-    <select id="nama" required>
+    <select name="entry.821452381" required>
       <option value="">-- Pilih Nama --</option>
-      <option value="Sugeng Hidayat">Sugeng Hidayat</option>
       <option value="Sutriono">Sutriono</option>
+      <option value="Sugeng Hidayat">Sugeng Hidayat</option>
       <option value="Rety Fauziah">Rety Fauziah</option>
       <option value="Komariah">Komariah</option>
       <option value="Ummu Sholikhah">Ummu Sholikhah</option>
@@ -33,7 +135,7 @@
     </select>
 
     <label>Status Kehadiran:</label>
-    <select id="status" required onchange="toggleBukti()">
+    <select id="status" name="entry.1071933386" required onchange="toggleBukti()">
       <option value="">-- Pilih Status --</option>
       <option value="Hadir">Hadir</option>
       <option value="Izin">Izin</option>
@@ -42,91 +144,21 @@
 
     <div id="buktiDiv">
       <label>Unggah Bukti Izin/Sakit:</label>
-      <input type="file" accept="image/*,application/pdf" id="bukti">
+      <input type="file" name="entry.1301079310" accept="image/*,application/pdf" id="bukti">
     </div>
 
     <label>Lokasi GPS (otomatis):</label>
-    <input id="lokasi" type="text" readonly required>
+    <input id="lokasi" name="entry.1301079308" type="text" readonly required>
 
     <label>Upload Foto Kehadiran:</label>
-    <input type="file" accept="image/*" capture="user" id="foto" required>
+    <input type="file" accept="image/*" capture="user" name="entry.1301079309" required>
 
     <input type="submit" value="Kirim Absensi">
     <p id="warning"></p>
-<p id="successMsg" style="color: green; font-weight: bold;"></p>
   </form>
 
-  <script>
-    const endpoint = "https://script.google.com/macros/s/AKfycbwRl1EgF-2blQTxHA7K2WC-lgASoZ4PuRVmzunQYWA_LYXWotfTuvFKfz9v2bt-zZM/exec";
-    const sekolahLat = -7.71917, sekolahLng = 113.00861, radiusMaks = 200;
-    let userLat = null, userLng = null;
+  <a class="download-link" href="https://drive.google.com/drive/folders/14jfUVIGdIoOyzF-G99HEHtk6HPAMg94fvxluGRKCAeKUHyRRQxb8lAdAAVFBslK3T6sxIY9t" target="_blank">📥 Lihat Rekap Absensi</a>
 
-    function toggleBukti() {
-      const status = document.getElementById("status").value;
-      document.getElementById("buktiDiv").style.display = (status === "Izin" || status === "Sakit") ? "block" : "none";
-    }
-
-    function getDistance(lat1, lon1, lat2, lon2) {
-      const R = 6371e3;
-      const φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
-      const Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lon2-lon1) * Math.PI/180;
-      const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    }
-
-    function updateLokasi() {
-      navigator.geolocation.getCurrentPosition(pos => {
-        userLat = pos.coords.latitude;
-        userLng = pos.coords.longitude;
-        document.getElementById("lokasi").value = userLat.toFixed(5) + ", " + userLng.toFixed(5);
-      }, err => {
-        document.getElementById("warning").innerText = "❌ Gagal mendapatkan lokasi: " + err.message;
-      });
-    }
-
-    function convertToBase64(file, callback) {
-      const reader = new FileReader();
-      reader.onloadend = () => callback(reader.result);
-      reader.readAsDataURL(file);
-    }
-
-    document.getElementById("absenForm").addEventListener("submit", async function(e) {
-      e.preventDefault();
-
-      const nama = document.getElementById("nama").value;
-      const status = document.getElementById("status").value;
-      const lokasi = document.getElementById("lokasi").value;
-      const fotoFile = document.getElementById("foto").files[0];
-      const buktiFile = document.getElementById("bukti").files[0];
-
-      if (!userLat || !userLng) return alert("❌ Lokasi belum tersedia. Aktifkan GPS.");
-      if (status === "Hadir" && getDistance(userLat, userLng, sekolahLat, sekolahLng) > radiusMaks)
-        return alert("❌ Anda berada di luar radius 200 meter dari sekolah.");
-
-      let fotoB64 = "", buktiB64 = "";
-      if (fotoFile) fotoB64 = await new Promise(res => convertToBase64(fotoFile, res));
-      if (buktiFile) buktiB64 = await new Promise(res => convertToBase64(buktiFile, res));
-
-      const payload = { nama, status, lokasi, fotoKehadiran: fotoB64, buktiIzin: buktiB64 };
-      fetch(endpoint, {
-        method: "POST",
-        body: JSON.stringify(payload),
-        headers: { "Content-Type": "application/json" }
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          document.getElementById("successMsg").innerText = "✅ Anda berhasil mengisi absen sebagai: " + nama;
-          e.target.reset();
-          document.getElementById("buktiDiv").style.display = "none";
-          updateLokasi();
-        } else {
-          alert("❌ Gagal: " + data.error);
-        }
-      });
-    });
-
-    updateLokasi();
-  </script>
+  <iframe name="hidden_iframe" style="display:none;" onload="submitBerhasil();"></iframe>
 </body>
 </html>
